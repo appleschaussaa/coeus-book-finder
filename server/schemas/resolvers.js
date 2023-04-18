@@ -1,5 +1,5 @@
 const { User, Book } = require('../models');
-// const { AuthenticationError } = require('apollo-server-express');
+const { AuthenticationError } = require('apollo-server-express');
 const { signToken } = require('../utils/auth');
 
 const resolvers = {
@@ -15,8 +15,8 @@ const resolvers = {
         addUser: async (parent, { username, email, password }) => {
             const user = await User.create({ username, email, password });
             const token = signToken(user);
+            return { token, user };
         },
-        
         login: async (parent, { email, password }) => {
             const user = await User.findOne({ email });
 
@@ -24,7 +24,7 @@ const resolvers = {
                 throw new AuthenticationError('Could not find a user with this email!');
             }
 
-            const correctPw = await user.isCorrectPassword(password);
+            const correctPw = await User.isCorrectPassword(password);
 
             if (!correctPw) {
                 throw new AuthenticationError('Incorrect cridentials!');
@@ -33,29 +33,29 @@ const resolvers = {
             const token = signToken(user);
             return { token, user };
         },
-
         saveBook: async (parent, { bookInput }, context) => {
             if (context.user) {
                 const updateBook = User.findOneAndUpdate(
                     { _id: context.user._id },
-                    { $push: { savedBooks: bookInput } },
+                    { $push: { $input: bookInput } },
                     { new: true }
-                )
+                );
                 return updateBook;
-            }
+            };
             throw new AuthenticationError('Sign in first!');
         },
-
-        removeBook: async (parent, { bookId }, content) => {
+        removeBook: async (parent, { bookId }, context) => {
             if (context.user) {
                 const updateBook = await User.findOneAndUpdate(
                     {_id: context.user._id},
                     {$pull: {savedBooks: { bookId: bookId }}},
                     { new: true }
-                )
+                );
                 return updateBook;
-            }
+            };
             throw new AuthenticationError('Sign in first!');
-        }
-    }
-}
+        },
+    },
+};
+
+module.exports = resolvers;
